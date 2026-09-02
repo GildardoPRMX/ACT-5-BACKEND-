@@ -1,0 +1,28 @@
+{
+  "name": "backend-frameworks",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+ "start": "node src/index.js",
+ "dev": "node --watch src/index.js",
+ "format": "prettier --write .",
+ "format:check": "prettier --check ."
+},
+
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devEngines": {
+    "packageManager": {
+      "name": "pnpm",
+      "version": "11.25.0",
+      "onFail": "download"
+    }
+  },
+  "packageManager": "pnpm@11.25.0",
+  "type": "module"
+
+  
+}
+
