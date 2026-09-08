@@ -2,14 +2,14 @@
   "name": "backend-frameworks",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "private": true,
+  "main": "dist/server.js",
   "scripts": {
- "start": "node src/index.js",
- "dev": "node --watch src/index.js",
- "format": "prettier --write .",
- "format:check": "prettier --check ."
-},
-
+    "dev": "tsx watch src/server.ts",
+    "check": "tsc --noEmit",
+    "build": "tsc",
+    "start": "node dist/server.js"
+  },
   "keywords": [],
   "author": "",
   "license": "ISC",
@@ -20,9 +20,16 @@
       "onFail": "download"
     }
   },
+  "type": "module",
   "packageManager": "pnpm@11.25.0",
-  "type": "module"
-
-  
+  "dependencies": {
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/node": "^26.4.1",
+    "tsx": "^4.23.13",
+    "typescript": "^7.0.2"
+  }
 }
-
