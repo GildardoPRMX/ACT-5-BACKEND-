@@ -1,0 +1,411 @@
+{
+  "info": {
+    "name": "Task API EC1 F3 A4",
+    "description": "Colección completa para pruebas de validación, middleware y manejo centralizado de errores (EC1 F3 A4) - Express & TypeScript",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000"
+    },
+    {
+      "key": "taskId",
+      "value": "3"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Health (200)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code es 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"Contiene X-Request-Id header\", () => pm.expect(pm.response.headers.has(\"X-Request-Id\")).to.be.true);",
+              "pm.test(\"Status es ok\", () => pm.expect(pm.response.json().status).to.eql(\"ok\"));"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/health"
+      }
+    },
+    {
+      "name": "2. Listar tareas (200)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code es 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"Devuelve arreglo de datos\", () => pm.expect(pm.response.json().data).to.be.an(\"array\"));"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/tasks"
+      }
+    },
+    {
+      "name": "3. Error ID no numérico (400 INVALID_ID)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code es 400\", () => pm.response.to.have.status(400));",
+              "pm.test(\"Code es INVALID_ID\", () => pm.expect(pm.response.json().error.code).to.eql(\"INVALID_ID\"));",
+              "pm.test(\"RequestId coincide con header\", () => {",
+              "    pm.expect(pm.response.json().error.requestId).to.eql(pm.response.headers.get(\"X-Request-Id\"));",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/tasks/abc"
+      }
+    },
+    {
+      "name": "4. Error tarea no encontrada (404 TASK_NOT_FOUND)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code es 404\", () => pm.response.to.have.status(404));",
+              "pm.test(\"Code es TASK_NOT_FOUND\", () => pm.expect(pm.response.json().error.code).to.eql(\"TASK_NOT_FOUND\"));"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/tasks/999"
+      }
+    },
+    {
+      "name": "5. Crear tarea válida (201)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code es 201\", () => pm.response.to.have.status(201));",
+              "var jsonData = pm.response.json();",
+              "if (jsonData.data && jsonData.data.id) {",
+              "    pm.collectionVariables.set(\"taskId\", jsonData.data.id.toString());",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \"Aprender validaciones y middleware\"\n}"
+        },
+        "url": "{{baseUrl}}/api/tasks"
+      }
+    },
+    {
+      "name": "6. Error Content-Type no soportado (415 UNSUPPORTED_MEDIA_TYPE)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code es 415\", () => pm.response.to.have.status(415));",
+              "pm.test(\"Code es UNSUPPORTED_MEDIA_TYPE\", () => pm.expect(pm.response.json().error.code).to.eql(\"UNSUPPORTED_MEDIA_TYPE\"));"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "text/plain"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "Texto sin formato JSON"
+        },
+        "url": "{{baseUrl}}/api/tasks"
+      }
+    },
+    {
+      "name": "7. Error título vacío (422 VALIDATION_ERROR)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code es 422\", () => pm.response.to.have.status(422));",
+              "pm.test(\"Code es VALIDATION_ERROR\", () => pm.expect(pm.response.json().error.code).to.eql(\"VALIDATION_ERROR\"));",
+              "pm.test(\"Detalle indica campo title\", () => pm.expect(pm.response.json().error.details[0].field).to.eql(\"title\"));"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \"\"\n}"
+        },
+        "url": "{{baseUrl}}/api/tasks"
+      }
+    },
+    {
+      "name": "8. Error título no string (422 VALIDATION_ERROR)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code es 422\", () => pm.response.to.have.status(422));",
+              "pm.test(\"Code es VALIDATION_ERROR\", () => pm.expect(pm.response.json().error.code).to.eql(\"VALIDATION_ERROR\"));"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": 25\n}"
+        },
+        "url": "{{baseUrl}}/api/tasks"
+      }
+    },
+    {
+      "name": "9. Error JSON malformado (400 INVALID_JSON)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code es 400\", () => pm.response.to.have.status(400));",
+              "pm.test(\"Code es INVALID_JSON\", () => pm.expect(pm.response.json().error.code).to.eql(\"INVALID_JSON\"));"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"title\": \"incompleto"
+        },
+        "url": "{{baseUrl}}/api/tasks"
+      }
+    },
+    {
+      "name": "10. Error ruta inexistente (404 ROUTE_NOT_FOUND)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code es 404\", () => pm.response.to.have.status(404));",
+              "pm.test(\"Code es ROUTE_NOT_FOUND\", () => pm.expect(pm.response.json().error.code).to.eql(\"ROUTE_NOT_FOUND\"));"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/ruta-inexistente"
+      }
+    },
+    {
+      "name": "11. Regresión: Completar tarea (200)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code es 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"Status es completed\", () => pm.expect(pm.response.json().data.status).to.eql(\"completed\"));"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "PATCH",
+        "url": "{{baseUrl}}/api/tasks/{{taskId}}/complete"
+      }
+    },
+    {
+      "name": "12. Desafío: Cambiar estado con booleano (200)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code es 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"Status actualizado\", () => pm.expect(pm.response.json().data.status).to.eql(\"pending\"));"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"completed\": false\n}"
+        },
+        "url": "{{baseUrl}}/api/tasks/{{taskId}}/status"
+      }
+    },
+    {
+      "name": "13. Desafío: Error estado con no booleano (422 VALIDATION_ERROR)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code es 422\", () => pm.response.to.have.status(422));",
+              "pm.test(\"Code es VALIDATION_ERROR\", () => pm.expect(pm.response.json().error.code).to.eql(\"VALIDATION_ERROR\"));",
+              "pm.test(\"Detalle indica completed\", () => pm.expect(pm.response.json().error.details[0].field).to.eql(\"completed\"));"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"completed\": \"si\"\n}"
+        },
+        "url": "{{baseUrl}}/api/tasks/{{taskId}}/status"
+      }
+    },
+    {
+      "name": "14. Desafío: Error cambiar estado tarea inexistente (404 TASK_NOT_FOUND)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code es 404\", () => pm.response.to.have.status(404));",
+              "pm.test(\"Code es TASK_NOT_FOUND\", () => pm.expect(pm.response.json().error.code).to.eql(\"TASK_NOT_FOUND\"));"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"completed\": true\n}"
+        },
+        "url": "{{baseUrl}}/api/tasks/999/status"
+      }
+    },
+    {
+      "name": "15. Regresión: Eliminar tarea (204)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code es 204\", () => pm.response.to.have.status(204));"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "DELETE",
+        "url": "{{baseUrl}}/api/tasks/{{taskId}}"
+      }
+    },
+    {
+      "name": "16. Comprobar tarea eliminada (404 TASK_NOT_FOUND)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code es 404\", () => pm.response.to.have.status(404));",
+              "pm.test(\"Code es TASK_NOT_FOUND\", () => pm.expect(pm.response.json().error.code).to.eql(\"TASK_NOT_FOUND\"));"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/tasks/{{taskId}}"
+      }
+    }
+  ]
+}
