@@ -2,10 +2,12 @@ import express from "express";
 
 import { errorHandler } from "./middlewares/error.middleware.js";
 import { notFound } from "./middlewares/not-found.middleware.js";
+import { requestContext } from "./middlewares/request-context.middleware.js";
 import { taskRouter } from "./routes/task.routes.js";
 
 export const app = express();
 
+app.use(requestContext);
 app.use(express.json());
 
 app.get("/health", (_req, res) => {
