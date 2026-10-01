@@ -1,75 +1,46 @@
-# Task API: Validación, Middleware y Manejo Centralizado de Errores (EC1 F3 A4)
+# Task API: Conexión Segura con MongoDB Atlas y Diagnóstico (EC2 F1 A5)
 
-API REST para la gestión de tareas desarrollada con **Express**, **TypeScript**, **Node.js** y almacenamiento temporal en memoria. Actividad guiada **EC1 F3 A4** para la asignatura *Programación Backend con Frameworks* (Universidad Estatal de Sonora).
+API REST para la gestión de tareas desarrollada con **Express 5**, **TypeScript**, **Node.js**, **Mongoose 8** y almacenamiento temporal en memoria para el CRUD. Actividad guiada **EC2 F1 A5** para la asignatura *Programación Backend con Frameworks* (Universidad Estatal de Sonora).
 
 ---
 
-## 🏛️ Arquitectura por Capas y Flujo de Peticiones
+## 🏛️ Arquitectura por Capas y Persistencia
 
-El proyecto implementa una arquitectura desacoplada y robusta donde las validaciones de transporte HTTP se aíslan en middlewares reutilizables, permitiendo que controladores y servicios consuman datos limpios y normalizados:
+El proyecto prepara la infraestructura de base de datos conectando con **MongoDB Atlas** de forma segura mediante variables de entorno validadas en el arranque y un módulo de diagnóstico de salud:
 
 ```
 Cliente (Postman / Frontend)
          │
          ▼
-    [requestContext] ──► Genera UUID único en X-Request-Id y res.locals.requestId
+    [requestContext] ──► Genera UUID en X-Request-Id y res.locals.requestId
          │
          ▼
      [express.json()] ──► Parsea el cuerpo JSON
          │
-         ▼
-[task.routes.ts] ──► Enrutamiento HTTP con router.param y middlewares de validación:
-         ├── router.param('id', validateTaskId) ──► Valida entero positivo (400 INVALID_ID)
-         ├── requireJson ──► Exige Content-Type application/json (415 UNSUPPORTED_MEDIA_TYPE)
-         ├── validateTaskTitle ──► Valida y normaliza title (422 VALIDATION_ERROR)
-         └── validateCompletion ──► Valida completed booleano (422 VALIDATION_ERROR)
+         ├──► /health ────────► health.routes.ts ──► health.controller.ts:
+         │                      ├── GET / ────────► status: "ok"
+         │                      └── GET /database ► ping con MongoDB Atlas (200 o 503)
          │
-         ▼
-[task.controller.ts] ──► Consume res.locals (taskId, taskTitle, completed) y delega al servicio
-         │
-         ▼
-[task.service.ts] ──► Reglas de negocio puras (existencia de tarea, 404 TASK_NOT_FOUND)
-         │
-         ▼
-  [data/tasks.ts] ──► Colección temporal de tareas en memoria
-         │
-         ▼
- [notFound / errorHandler] ──► Captura de errores unificada con formato JSON y requestId
+         └──► /api/tasks ─────► task.routes.ts ──► validaciones con middlewares:
+                                ├── router.param('id', validateTaskId)
+                                ├── requireJson
+                                └── validateTaskTitle / validateCompletion
+                                         │
+                                         ▼
+                                task.controller.ts ──► task.service.ts ──► data/tasks.ts (en memoria)
 ```
 
 ---
 
-## 📦 Contrato Uniforme de Errores
+## 🛡️ Configuración Segura de Variables de Entorno
 
-Todas las respuestas de error siguen una estructura JSON homogénea y predecible:
+La API valida en el arranque (`src/config/env.ts`) las variables requeridas antes de intentar conectar a la base de datos o abrir el puerto:
 
-```json
-{
-  "error": {
-    "code": "VALIDATION_ERROR",
-    "message": "La solicitud contiene datos inválidos.",
-    "details": [
-      {
-        "field": "title",
-        "message": "Debe ser texto no vacío."
-      }
-    ],
-    "requestId": "a0c804a5-1102-45e0-9467-34751f8877aa"
-  }
-}
-```
-
-### Códigos de Error del Servidor
-
-| Estado HTTP | Código de la API (`code`) | Causa / Uso |
-|:-----------:|:--------------------------|:------------|
-| `400 Bad Request` | `INVALID_ID` | El identificador de ruta no es un entero positivo. |
-| `400 Bad Request` | `INVALID_JSON` | El cuerpo de la petición contiene sintaxis JSON malformada. |
-| `404 Not Found` | `TASK_NOT_FOUND` | La tarea solicitada no existe en la colección. |
-| `404 Not Found` | `ROUTE_NOT_FOUND` | La ruta o método HTTP solicitado no existe. |
-| `415 Unsupported Media Type` | `UNSUPPORTED_MEDIA_TYPE` | Endpoints con cuerpo que no declaran `Content-Type: application/json`. |
-| `422 Unprocessable Entity` | `VALIDATION_ERROR` | Los campos JSON no cumplen con las restricciones semánticas. |
-| `500 Internal Server Error` | `INTERNAL_ERROR` | Fallo no previsto o excepción no controlada en el servidor. |
+| Variable | Descripción | Estado |
+|---|---|---|
+| `PORT` | Puerto local en el que escucha Express (ej. `3000`). | No secreta |
+| `MONGODB_URI` | Cadena de conexión `mongodb+srv://...` con credenciales y clúster. | **Secreta** (no se versiona) |
+| `MONGODB_DB_NAME` | Nombre de la base de datos del proyecto (`task_api`). | Configuración |
 
 ---
 
@@ -77,62 +48,48 @@ Todas las respuestas de error siguen una estructura JSON homogénea y predecible
 
 | Método | Ruta | Código HTTP | Descripción |
 |:------:|:-----|:-----------:|:------------|
-| `GET` | `/health` | `200 OK` | Comprueba estado y disponibilidad del servidor. |
-| `GET` | `/api/tasks` | `200 OK` | Obtiene la lista de todas las tareas. |
-| `GET` | `/api/tasks/:id` | `200 OK` / `400` / `404` | Obtiene una tarea específica por su ID. |
-| `POST` | `/api/tasks` | `201 Created` / `400` / `415` / `422` | Crea una nueva tarea (`{"title": "..."}`). |
-| `PATCH` | `/api/tasks/:id/complete` | `200 OK` / `400` / `404` | Marca una tarea existente como completada. |
-| `PATCH` | `/api/tasks/:id/status` | `200 OK` / `400` / `404` / `415` / `422` | **(Desafío F3 A4)** Actualiza el estado booleano (`{"completed": true}`). |
-| `PATCH` | `/api/tasks/:id` | `200 OK` / `400` / `404` / `415` / `422` | Edita el título de una tarea (`{"title": "..."}`). |
+| `GET` | `/health` | `200 OK` | Comprueba estado del proceso del servidor (`status: "ok"`). |
+| `GET` | `/health/database` | `200 OK` / `503` | Diagnóstico de disponibilidad de MongoDB con comando `ping`. |
+| `GET` | `/api/tasks` | `200 OK` | Obtiene la lista de tareas en memoria. |
+| `GET` | `/api/tasks/:id` | `200 OK` / `400` / `404` | Obtiene una tarea específica por ID. |
+| `POST` | `/api/tasks` | `201 Created` / `400` / `415` / `422` | Crea una tarea nueva (`{"title": "..."}`). |
+| `PATCH` | `/api/tasks/:id/complete` | `200 OK` / `400` / `404` | Marca una tarea como completada. |
+| `PATCH` | `/api/tasks/:id/status` | `200 OK` / `400` / `404` / `415` / `422` | Actualiza el estado booleano (`{"completed": true}`). |
+| `PATCH` | `/api/tasks/:id` | `200 OK` / `400` / `404` / `415` / `422` | Edita el título de una tarea. |
 | `DELETE` | `/api/tasks/:id` | `204 No Content` / `400` / `404` | Elimina una tarea por su ID. |
 
 ---
 
-## 🚀 Requisitos y Configuración
+## 🛑 Desafío Individual: Cierre Ordenado (*Graceful Shutdown*)
 
-### Requisitos Previos
-- **Node.js** (v18 o superior)
-- **PNPM**
-- **Visual Studio Code**
-- **Git**
-- **Postman**
-
-### Instalación de dependencias
-
-```bash
-pnpm install
-```
-
-### Configuración del entorno
-Copie el archivo `.env.example` a `.env` (si aún no existe):
-
-```bash
-cp .env.example .env
-```
+Se implementó el cierre controlado del servidor en [`src/server.ts`](src/server.ts) y [`src/config/database.ts`](src/config/database.ts):
+- Al recibir las señales `SIGINT` (Ctrl+C) o `SIGTERM`, el servidor deja de aceptar nuevas conexiones HTTP (`server.close()`).
+- Se cierra de forma asíncrona la conexión activa con MongoDB Atlas (`mongoose.disconnect()`).
+- Se finaliza el proceso de forma limpia sin generar excepciones no controladas ni exponer detalles sensibles.
 
 ---
 
-## 💻 Comandos del Proyecto
+## 🚀 Comandos del Proyecto
 
 | Comando | Propósito |
 |---|---|
-| `pnpm dev` | Inicia el servidor en modo desarrollo con recarga automática (`tsx watch`). |
+| `pnpm dev` | Inicia el servidor en desarrollo con conexión a MongoDB Atlas y recarga automática (`tsx watch`). |
 | `pnpm check` | Comprueba tipos e integridad con el compilador de TypeScript (`tsc --noEmit`). |
-| `pnpm build` | Compila el código fuente TypeScript a JavaScript estándar en la carpeta `dist/`. |
+| `pnpm build` | Compila el código TypeScript a JavaScript en `dist/`. |
 | `pnpm start` | Ejecuta la versión compilada en producción con Node.js (`node dist/server.js`). |
 
 ---
 
-## 🧪 Colección y Pruebas en Postman
+## 🧪 Pruebas en Postman
 
-Se incluye la colección completa con pruebas unitarias y aserciones automatizadas en:
-📂 `postman/task-api-ec1-f3-a4.postman_collection.json`
+Se incluye la colección oficial en:
+📂 `postman/task-api-ec2-f1-a1.postman_collection.json`
 
 ### Importación y ejecución:
 1. Abra Postman y seleccione **Import**.
-2. Cargue el archivo `postman/task-api-ec1-f3-a4.postman_collection.json`.
+2. Cargue el archivo `postman/task-api-ec2-f1-a1.postman_collection.json`.
 3. Inicie el servidor con `pnpm dev`.
-4. Ejecute la colección completa para validar las 16 pruebas positivas, negativas y de regresión.
+4. Ejecute las peticiones en orden: pruebas de salud (`/health`, `/health/database`), regresión del CRUD y casos negativos.
 
 ---
 
@@ -141,38 +98,36 @@ Se incluye la colección completa con pruebas unitarias y aserciones automatizad
 ```
 backend-frameworks/
 ├── src/
+│   ├── config/
+│   │   ├── database.ts
+│   │   └── env.ts
 │   ├── controllers/
+│   │   ├── health.controller.ts
 │   │   └── task.controller.ts
 │   ├── data/
 │   │   └── tasks.ts
 │   ├── errors/
 │   │   └── app-error.ts
 │   ├── middlewares/
-│   │   ├── error.middleware.ts
-│   │   ├── not-found.middleware.ts
-│   │   ├── request-context.middleware.ts
-│   │   ├── require-json.middleware.ts
-│   │   ├── validate-completion.middleware.ts
-│   │   ├── validate-task-id.middleware.ts
-│   │   └── validate-task-title.middleware.ts
 │   ├── models/
 │   │   └── task.ts
 │   ├── routes/
+│   │   ├── health.routes.ts
 │   │   └── task.routes.ts
 │   ├── services/
+│   │   ├── database.service.ts
 │   │   └── task.service.ts
 │   ├── types/
-│   │   └── api-error.ts
 │   ├── app.ts
 │   └── server.ts
 ├── docs/
+│   ├── pruebas-conexion-mongodb.md
+│   ├── reflexion-mongodb.md
 │   ├── pruebas-validacion.md
-│   ├── reflexion-validacion.md
-│   ├── pruebas-api.md
-│   └── reflexion.md
+│   └── reflexion-validacion.md
 ├── postman/
-│   ├── task-api-ec1-f3-a4.postman_collection.json
-│   └── task-api-ec1-f2-a3.postman_collection.json
+│   ├── task-api-ec2-f1-a1.postman_collection.json
+│   └── task-api-ec1-f3-a4.postman_collection.json
 ├── .env
 ├── .env.example
 ├── .gitignore
@@ -184,5 +139,5 @@ backend-frameworks/
 ---
 
 ## 📄 Evidencias y Documentación
-- **Registro de Pruebas de Validación**: [docs/pruebas-validacion.md](docs/pruebas-validacion.md)
-- **Reflexión sobre Middleware y Errores**: [docs/reflexion-validacion.md](docs/reflexion-validacion.md)
+- **Registro de Pruebas con MongoDB Atlas**: [docs/pruebas-conexion-mongodb.md](docs/pruebas-conexion-mongodb.md)
+- **Reflexión sobre Conexión Segura**: [docs/reflexion-mongodb.md](docs/reflexion-mongodb.md)
