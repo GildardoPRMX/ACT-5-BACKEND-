@@ -1,6 +1,6 @@
 {
   "info": {
-    "name": "Task API EC2 F1 A1",
+    "name": "Task API EC2 F1 A5",
     "description": "Colección de pruebas para MongoDB Atlas y diagnóstico de disponibilidad (EC2 F1 A5) - Express & Mongoose",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
