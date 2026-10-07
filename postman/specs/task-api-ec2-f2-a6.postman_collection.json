@@ -1,0 +1,373 @@
+{
+  "info": {
+    "name": "Task API EC2 F2 A6 Persistencia",
+    "description": "Colección de pruebas para modelado de documentos y persistencia de tareas en MongoDB Atlas (EC2 F2 A6)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000"
+    },
+    {
+      "key": "taskId",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Positiva: Health (200)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code es 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"Contiene status ok\", () => pm.expect(pm.response.json().status).to.eql(\"ok\"));",
+              "pm.test(\"Incluye encabezado X-Request-Id\", () => pm.expect(pm.response.headers.has(\"X-Request-Id\")).to.be.true);"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/health"
+      }
+    },
+    {
+      "name": "2. Positiva: Health Database (200 connected)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code es 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"Database status es connected\", () => {",
+              "    const json = pm.response.json();",
+              "    pm.expect(json.data.database.status).to.eql(\"connected\");",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/health/database"
+      }
+    },
+    {
+      "name": "3. Persistencia: Crear tarea válida (201)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code es 201\", () => pm.response.to.have.status(201));",
+              "const json = pm.response.json();",
+              "pm.test(\"Devuelve id de 24 caracteres hexadecimales (ObjectId)\", () => {",
+              "    pm.expect(json.data.id).to.match(/^[0-9a-fA-F]{24}$/);",
+              "});",
+              "pm.test(\"El status inicial es pending\", () => {",
+              "    pm.expect(json.data.status).to.eql(\"pending\");",
+              "});",
+              "if (json.data && json.data.id) {",
+              "    pm.collectionVariables.set(\"taskId\", json.data.id);",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \"Diseñar el modelo de tareas\"\n}"
+        },
+        "url": "{{baseUrl}}/api/tasks"
+      }
+    },
+    {
+      "name": "4. Desafío Individual: Crear tarea con description (201)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code es 201\", () => pm.response.to.have.status(201));",
+              "const json = pm.response.json();",
+              "pm.test(\"Guarda y devuelve description\", () => {",
+              "    pm.expect(json.data.description).to.eql(\"Descripción opcional para el desafío individual\");",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \"Segunda tarea con descripción\",\n  \"description\": \"Descripción opcional para el desafío individual\"\n}"
+        },
+        "url": "{{baseUrl}}/api/tasks"
+      }
+    },
+    {
+      "name": "5. Persistencia: Listar tareas desde Atlas (200)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code es 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"Devuelve arreglo de tareas\", () => pm.expect(pm.response.json().data).to.be.an(\"array\"));"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/tasks"
+      }
+    },
+    {
+      "name": "6. Persistencia: Consultar tarea por ObjectId (200)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code es 200\", () => pm.response.to.have.status(200));",
+              "const json = pm.response.json();",
+              "pm.test(\"El id coincide con la variable taskId\", () => {",
+              "    pm.expect(json.data.id).to.eql(pm.collectionVariables.get(\"taskId\"));",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/tasks/{{taskId}}"
+      }
+    },
+    {
+      "name": "7. Regresión: Completar tarea (200 completed)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code es 200\", () => pm.response.to.have.status(200));",
+              "const json = pm.response.json();",
+              "pm.test(\"El status ahora es completed\", () => {",
+              "    pm.expect(json.data.status).to.eql(\"completed\");",
+              "});",
+              "pm.test(\"updatedAt fue actualizado\", () => {",
+              "    pm.expect(json.data.updatedAt).to.exist;",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "PATCH",
+        "url": "{{baseUrl}}/api/tasks/{{taskId}}/complete"
+      }
+    },
+    {
+      "name": "8. Negativa: ID no hexadecimal / numérico antiguo (400 INVALID_ID)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code es 400\", () => pm.response.to.have.status(400));",
+              "pm.test(\"Código de error es INVALID_ID\", () => {",
+              "    pm.expect(pm.response.json().error.code).to.eql(\"INVALID_ID\");",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/tasks/1"
+      }
+    },
+    {
+      "name": "9. Negativa: ObjectId inexistente (404 TASK_NOT_FOUND)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code es 404\", () => pm.response.to.have.status(404));",
+              "pm.test(\"Código de error es TASK_NOT_FOUND\", () => {",
+              "    pm.expect(pm.response.json().error.code).to.eql(\"TASK_NOT_FOUND\");",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/tasks/507f1f77bcf86cd799439011"
+      }
+    },
+    {
+      "name": "10. Negativa: Título vacío (422 VALIDATION_ERROR)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code es 422\", () => pm.response.to.have.status(422));",
+              "pm.test(\"Código de error es VALIDATION_ERROR\", () => {",
+              "    pm.expect(pm.response.json().error.code).to.eql(\"VALIDATION_ERROR\");",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \"   \"\n}"
+        },
+        "url": "{{baseUrl}}/api/tasks"
+      }
+    },
+    {
+      "name": "11. Negativa: Description superior a 300 caracteres (422 VALIDATION_ERROR)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code es 422\", () => pm.response.to.have.status(422));",
+              "pm.test(\"Código de error es VALIDATION_ERROR\", () => {",
+              "    const json = pm.response.json();",
+              "    pm.expect(json.error.code).to.eql(\"VALIDATION_ERROR\");",
+              "    pm.expect(json.error.details[0].field).to.eql(\"description\");",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \"Título válido\",\n  \"description\": \"Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore 301 caracteres extra\"\n}"
+        },
+        "url": "{{baseUrl}}/api/tasks"
+      }
+    },
+    {
+      "name": "12. Negativa: Content-Type no soportado (415 UNSUPPORTED_MEDIA_TYPE)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code es 415\", () => pm.response.to.have.status(415));",
+              "pm.test(\"Código es UNSUPPORTED_MEDIA_TYPE\", () => {",
+              "    pm.expect(pm.response.json().error.code).to.eql(\"UNSUPPORTED_MEDIA_TYPE\");",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "text/plain"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "Texto sin formato JSON"
+        },
+        "url": "{{baseUrl}}/api/tasks"
+      }
+    },
+    {
+      "name": "13. Regresión: Eliminar tarea (204 No Content)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code es 204\", () => pm.response.to.have.status(204));"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "DELETE",
+        "url": "{{baseUrl}}/api/tasks/{{taskId}}"
+      }
+    },
+    {
+      "name": "14. Regresión: Comprobar tarea eliminada (404 TASK_NOT_FOUND)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code es 404\", () => pm.response.to.have.status(404));",
+              "pm.test(\"Código es TASK_NOT_FOUND\", () => {",
+              "    pm.expect(pm.response.json().error.code).to.eql(\"TASK_NOT_FOUND\");",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/tasks/{{taskId}}"
+      }
+    }
+  ]
+}
