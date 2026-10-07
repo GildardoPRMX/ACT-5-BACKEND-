@@ -1,91 +1,133 @@
-import { tasks } from "../data/tasks.js";
+import mongoose, { type HydratedDocument } from "mongoose";
 import { AppError } from "../errors/app-error.js";
-import type { Task } from "../models/task.js";
+import {
+  TaskModel,
+  type Task,
+  type TaskPersistence,
+} from "../models/task.js";
 
-export const listTasks = (): readonly Task[] => tasks;
-
-export const findTaskById = (id: number): Task => {
-  const task = tasks.find((item) => item.id === id);
-
-  if (!task) {
-    throw new AppError(
-      `No existe una tarea con el id ${id}.`,
-      404,
-      "TASK_NOT_FOUND",
-    );
-  }
-
-  return task;
-};
-
-const validateTitle = (title: unknown): string => {
-  if (typeof title !== "string" || !title.trim()) {
-    throw new AppError(
-      "La solicitud contiene datos inválidos.",
-      422,
-      "VALIDATION_ERROR",
-      [{ field: "title", message: "Debe ser texto no vacío." }],
-    );
-  }
-
-  if (title.trim().length > 120) {
-    throw new AppError(
-      "La solicitud contiene datos inválidos.",
-      422,
-      "VALIDATION_ERROR",
-      [{ field: "title", message: "No debe superar 120 caracteres." }],
-    );
-  }
-
-  return title.trim();
-};
-
-export const createTask = (title: unknown): Task => {
-  const validTitle = validateTitle(title);
-
+const toTask = (document: HydratedDocument<TaskPersistence>): Task => {
   const task: Task = {
-    id: Math.max(0, ...tasks.map((item) => item.id)) + 1,
-    title: validTitle,
-    status: "pending",
-    createdAt: new Date(),
+    id: document._id.toString(),
+    title: document.title,
+    status: document.status,
+    createdAt: document.createdAt,
+    updatedAt: document.updatedAt,
   };
 
-  tasks.push(task);
+  if (document.description !== undefined && document.description !== null && document.description !== "") {
+    task.description = document.description;
+  }
 
   return task;
 };
 
-export const updateTaskTitle = (id: number, title: unknown): Task => {
-  const task = findTaskById(id);
-  task.title = validateTitle(title);
+const mapPersistenceError = (error: unknown): AppError => {
+  if (error instanceof AppError) return error;
 
-  return task;
-};
+  if (error instanceof mongoose.Error.ValidationError) {
+    const details = Object.values(error.errors).map((item) => ({
+      field: item.path,
+      message: item.message,
+    }));
 
-export const updateTaskStatus = (id: number, completed: boolean): Task => {
-  const task = findTaskById(id);
-  task.status = completed ? "completed" : "pending";
-
-  return task;
-};
-
-export const completeTask = (id: number): Task => {
-  const task = findTaskById(id);
-  task.status = "completed";
-
-  return task;
-};
-
-export const deleteTask = (id: number): void => {
-  const index = tasks.findIndex((item) => item.id === id);
-
-  if (index === -1) {
-    throw new AppError(
-      `No existe una tarea con el id ${id}.`,
-      404,
-      "TASK_NOT_FOUND",
+    return new AppError(
+      "La tarea no cumple las reglas del modelo.",
+      422,
+      "PERSISTENCE_VALIDATION_ERROR",
+      details,
     );
   }
 
-  tasks.splice(index, 1);
+  return new AppError(
+    "No fue posible acceder al almacenamiento de tareas.",
+    503,
+    "DATABASE_UNAVAILABLE",
+  );
+};
+
+export const listTasks = async (): Promise<Task[]> => {
+  try {
+    const documents = await TaskModel.find().sort({ createdAt: 1 });
+    return documents.map(toTask);
+  } catch (error: unknown) {
+    throw mapPersistenceError(error);
+  }
+};
+
+export const findTaskById = async (id: string): Promise<Task> => {
+  try {
+    const document = await TaskModel.findById(id);
+
+    if (!document) {
+      throw new AppError(
+        `No existe una tarea con el id ${id}.`,
+        404,
+        "TASK_NOT_FOUND",
+      );
+    }
+
+    return toTask(document);
+  } catch (error: unknown) {
+    throw mapPersistenceError(error);
+  }
+};
+
+export const createTask = async (
+  title: string,
+  description?: string,
+): Promise<Task> => {
+  try {
+    const payload: { title: string; status: "pending"; description?: string } = {
+      title,
+      status: "pending",
+    };
+
+    if (description !== undefined && description !== null && description.trim() !== "") {
+      payload.description = description.trim();
+    }
+
+    const document = await TaskModel.create(payload);
+    return toTask(document);
+  } catch (error: unknown) {
+    throw mapPersistenceError(error);
+  }
+};
+
+export const completeTask = async (id: string): Promise<Task> => {
+  try {
+    const document = await TaskModel.findByIdAndUpdate(
+      id,
+      { status: "completed" },
+      { new: true, runValidators: true },
+    );
+
+    if (!document) {
+      throw new AppError(
+        `No existe una tarea con el id ${id}.`,
+        404,
+        "TASK_NOT_FOUND",
+      );
+    }
+
+    return toTask(document);
+  } catch (error: unknown) {
+    throw mapPersistenceError(error);
+  }
+};
+
+export const deleteTask = async (id: string): Promise<void> => {
+  try {
+    const document = await TaskModel.findByIdAndDelete(id);
+
+    if (!document) {
+      throw new AppError(
+        `No existe una tarea con el id ${id}.`,
+        404,
+        "TASK_NOT_FOUND",
+      );
+    }
+  } catch (error: unknown) {
+    throw mapPersistenceError(error);
+  }
 };
