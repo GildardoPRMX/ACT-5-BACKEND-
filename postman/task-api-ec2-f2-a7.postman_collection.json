@@ -1,0 +1,466 @@
+{
+  "info": {
+    "name": "Task API EC2 F2 A7 CRUD Persistente",
+    "description": "Pruebas positivas, negativas y de regresión para el CRUD persistente con Express y MongoDB Atlas.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000"
+    },
+    {
+      "key": "taskId",
+      "value": ""
+    },
+    {
+      "key": "missingTaskId",
+      "value": "64f000000000000000000001"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Health",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('responde 200', () => pm.response.to.have.status(200));",
+              "pm.test('status ok', () => pm.expect(pm.response.json().status).to.eql('ok'));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/health"
+      }
+    },
+    {
+      "name": "2. Health Database",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('responde 200', () => pm.response.to.have.status(200));",
+              "pm.test('database connected', () => pm.expect(pm.response.json().data.database.status).to.eql('connected'));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/health/database"
+      }
+    },
+    {
+      "name": "3. Crear tarea",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const body = pm.response.json();",
+              "pm.collectionVariables.set('taskId', body.data.id);",
+              "pm.test('responde 201', () => pm.response.to.have.status(201));",
+              "pm.test('status inicial pending', () => pm.expect(body.data.status).to.eql('pending'));",
+              "pm.test('id es ObjectId', () => pm.expect(body.data.id).to.match(/^[a-f\\d]{24}$/i));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"title\":\"Preparar evidencia del CRUD\"}"
+        },
+        "url": "{{baseUrl}}/api/tasks"
+      }
+    },
+    {
+      "name": "4. Listar tareas",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('responde 200', () => pm.response.to.have.status(200));",
+              "pm.test('data es arreglo', () => pm.expect(pm.response.json().data).to.be.an('array'));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/tasks"
+      }
+    },
+    {
+      "name": "5. Consultar tarea por id",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const body = pm.response.json();",
+              "pm.test('responde 200', () => pm.response.to.have.status(200));",
+              "pm.test('usa el mismo id', () => pm.expect(body.data.id).to.eql(pm.collectionVariables.get('taskId')));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/tasks/{{taskId}}"
+      }
+    },
+    {
+      "name": "6. Actualizar solo title",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const body = pm.response.json();",
+              "pm.test('responde 200', () => pm.response.to.have.status(200));",
+              "pm.test('cambia title', () => pm.expect(body.data.title).to.eql('Documentar el CRUD persistente'));",
+              "pm.test('conserva status pending', () => pm.expect(body.data.status).to.eql('pending'));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"title\":\"Documentar el CRUD persistente\"}"
+        },
+        "url": "{{baseUrl}}/api/tasks/{{taskId}}"
+      }
+    },
+    {
+      "name": "7. Actualizar solo status",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const body = pm.response.json();",
+              "pm.test('responde 200', () => pm.response.to.have.status(200));",
+              "pm.test('cambia status', () => pm.expect(body.data.status).to.eql('completed'));",
+              "pm.test('conserva title', () => pm.expect(body.data.title).to.eql('Documentar el CRUD persistente'));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"status\":\"completed\"}"
+        },
+        "url": "{{baseUrl}}/api/tasks/{{taskId}}"
+      }
+    },
+    {
+      "name": "8. Actualizar ambos campos",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const body = pm.response.json();",
+              "pm.test('responde 200', () => pm.response.to.have.status(200));",
+              "pm.test('cambia title y status', () => {",
+              "  pm.expect(body.data.title).to.eql('Revisar evidencias');",
+              "  pm.expect(body.data.status).to.eql('pending');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"title\":\"Revisar evidencias\",\"status\":\"pending\"}"
+        },
+        "url": "{{baseUrl}}/api/tasks/{{taskId}}"
+      }
+    },
+    {
+      "name": "9. Completar ruta heredada",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const body = pm.response.json();",
+              "pm.test('responde 200', () => pm.response.to.have.status(200));",
+              "pm.test('queda completed', () => pm.expect(body.data.status).to.eql('completed'));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "PATCH",
+        "url": "{{baseUrl}}/api/tasks/{{taskId}}/complete"
+      }
+    },
+    {
+      "name": "10. Eliminar tarea",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('responde 204', () => pm.response.to.have.status(204));",
+              "pm.test('cuerpo vacio', () => pm.expect(pm.response.text()).to.eql(''));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "DELETE",
+        "url": "{{baseUrl}}/api/tasks/{{taskId}}"
+      }
+    },
+    {
+      "name": "11. Consulta posterior devuelve 404",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const body = pm.response.json();",
+              "pm.test('responde 404', () => pm.response.to.have.status(404));",
+              "pm.test('code TASK_NOT_FOUND', () => pm.expect(body.error.code).to.eql('TASK_NOT_FOUND'));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/tasks/{{taskId}}"
+      }
+    },
+    {
+      "name": "12. Negativa id inválido",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const body = pm.response.json();",
+              "pm.test('responde 400', () => pm.response.to.have.status(400));",
+              "pm.test('code INVALID_ID', () => pm.expect(body.error.code).to.eql('INVALID_ID'));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"title\":\"No importa\"}"
+        },
+        "url": "{{baseUrl}}/api/tasks/1"
+      }
+    },
+    {
+      "name": "13. Negativa ObjectId inexistente",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const body = pm.response.json();",
+              "pm.test('responde 404', () => pm.response.to.have.status(404));",
+              "pm.test('code TASK_NOT_FOUND', () => pm.expect(body.error.code).to.eql('TASK_NOT_FOUND'));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"title\":\"No existe\"}"
+        },
+        "url": "{{baseUrl}}/api/tasks/{{missingTaskId}}"
+      }
+    },
+    {
+      "name": "14. Negativa cuerpo vacío",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const body = pm.response.json();",
+              "pm.test('responde 422', () => pm.response.to.have.status(422));",
+              "pm.test('code VALIDATION_ERROR', () => pm.expect(body.error.code).to.eql('VALIDATION_ERROR'));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{}"
+        },
+        "url": "{{baseUrl}}/api/tasks/{{missingTaskId}}"
+      }
+    },
+    {
+      "name": "15. Negativa status inválido",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const body = pm.response.json();",
+              "pm.test('responde 422', () => pm.response.to.have.status(422));",
+              "pm.test('detalle status', () => pm.expect(body.error.details.some((item) => item.field === 'status')).to.be.true);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"status\":\"archived\"}"
+        },
+        "url": "{{baseUrl}}/api/tasks/{{missingTaskId}}"
+      }
+    },
+    {
+      "name": "16. Negativa campo no permitido",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const body = pm.response.json();",
+              "pm.test('responde 422', () => pm.response.to.have.status(422));",
+              "pm.test('detalle owner', () => pm.expect(body.error.details.some((item) => item.field === 'owner')).to.be.true);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"owner\":\"Ana\"}"
+        },
+        "url": "{{baseUrl}}/api/tasks/{{missingTaskId}}"
+      }
+    },
+    {
+      "name": "17. Negativa sin application/json",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const body = pm.response.json();",
+              "pm.test('responde 415', () => pm.response.to.have.status(415));",
+              "pm.test('code UNSUPPORTED_MEDIA_TYPE', () => pm.expect(body.error.code).to.eql('UNSUPPORTED_MEDIA_TYPE'));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "text/plain"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"title\":\"Texto\"}"
+        },
+        "url": "{{baseUrl}}/api/tasks/{{missingTaskId}}"
+      }
+    }
+  ]
+}

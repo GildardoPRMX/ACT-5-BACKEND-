@@ -6,57 +6,51 @@ import {
   deleteTask,
   findTaskById,
   listTasks,
-  updateTaskStatus,
-  updateTaskTitle,
+  updateTask,
 } from "../services/task.service.js";
 
-export const getTasks = (_req: Request, res: Response): void => {
-  res.status(200).json({ data: listTasks() });
-};
-
-export const getTask = (
+export const getTasks = async (
   _req: Request,
   res: Response,
-): void => {
-  res.status(200).json({ data: findTaskById(res.locals.taskId) });
+): Promise<void> => {
+  res.status(200).json({ data: await listTasks() });
 };
 
-export const postTask = (
+export const getTask = async (
   _req: Request,
   res: Response,
-): void => {
-  const task = createTask(res.locals.taskTitle);
+): Promise<void> => {
+  res.status(200).json({ data: await findTaskById(res.locals.taskId) });
+};
+
+export const postTask = async (
+  _req: Request,
+  res: Response,
+): Promise<void> => {
+  const task = await createTask(res.locals.taskTitle);
   res.status(201).json({ data: task });
 };
 
-export const patchTask = (
+export const patchTask = async (
   _req: Request,
   res: Response,
-): void => {
-  const task = updateTaskTitle(res.locals.taskId, res.locals.taskTitle);
+): Promise<void> => {
+  const task = await updateTask(res.locals.taskId, res.locals.taskUpdate);
   res.status(200).json({ data: task });
 };
 
-export const patchTaskComplete = (
+export const patchTaskComplete = async (
   _req: Request,
   res: Response,
-): void => {
-  const task = completeTask(res.locals.taskId);
+): Promise<void> => {
+  const task = await completeTask(res.locals.taskId);
   res.status(200).json({ data: task });
 };
 
-export const patchTaskStatus = (
+export const removeTask = async (
   _req: Request,
   res: Response,
-): void => {
-  const task = updateTaskStatus(res.locals.taskId, res.locals.completed);
-  res.status(200).json({ data: task });
-};
-
-export const removeTask = (
-  _req: Request,
-  res: Response,
-): void => {
-  deleteTask(res.locals.taskId);
+): Promise<void> => {
+  await deleteTask(res.locals.taskId);
   res.status(204).send();
 };

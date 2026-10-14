@@ -1,17 +1,18 @@
 import type { NextFunction, Request, Response } from "express";
 import { AppError } from "../errors/app-error.js";
 
+const objectIdPattern = /^[a-f\d]{24}$/i;
+
 export const validateTaskId = (
   _req: Request,
   res: Response,
   next: NextFunction,
   value: string,
 ): void => {
-  const id = Number(value);
-  if (!Number.isInteger(id) || id <= 0) {
+  if (!objectIdPattern.test(value)) {
     next(
       new AppError(
-        "El id debe ser un entero positivo.",
+        "El id debe ser un ObjectId válido.",
         400,
         "INVALID_ID",
       ),
@@ -19,6 +20,6 @@ export const validateTaskId = (
     return;
   }
 
-  res.locals.taskId = id;
+  res.locals.taskId = value;
   next();
 };
