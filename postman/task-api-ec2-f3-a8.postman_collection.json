@@ -1,0 +1,805 @@
+{
+  "info": {
+    "name": "Task API EC2 F3 A8 Consultas Paginadas y Repositorio",
+    "description": "Colección completa de pruebas positivas, negativas, regresión y desafío individual para arquitectura en capas, consultas paginadas, filtros, búsqueda y ordenamiento.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000"
+    },
+    {
+      "key": "taskId",
+      "value": ""
+    },
+    {
+      "key": "missingTaskId",
+      "value": "64f000000000000000000001"
+    }
+  ],
+  "item": [
+    {
+      "name": "01. Health",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('responde 200', () => pm.response.to.have.status(200));",
+              "pm.test('status ok', () => pm.expect(pm.response.json().status).to.eql('ok'));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/health"
+      }
+    },
+    {
+      "name": "02. Health Database",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('responde 200', () => pm.response.to.have.status(200));",
+              "pm.test('database connected', () => pm.expect(pm.response.json().data.database.status).to.eql('connected'));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/health/database"
+      }
+    },
+    {
+      "name": "03. Crear tarea para pruebas",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const body = pm.response.json();",
+              "pm.test('responde 201', () => pm.response.to.have.status(201));",
+              "pm.test('status inicial pending', () => pm.expect(body.data.status).to.eql('pending'));",
+              "pm.test('id es ObjectId', () => pm.expect(body.data.id).to.match(/^[a-f\\d]{24}$/i));",
+              "pm.collectionVariables.set('taskId', body.data.id);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"title\":\"Aprender Express y consultas con Mongoose\"}"
+        },
+        "url": "{{baseUrl}}/api/tasks"
+      }
+    },
+    {
+      "name": "04. Listado predeterminado sin parámetros",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const body = pm.response.json();",
+              "pm.test('responde 200', () => pm.response.to.have.status(200));",
+              "pm.test('data es arreglo', () => pm.expect(body.data).to.be.an('array'));",
+              "pm.test('meta existe y contiene paginacion', () => {",
+              "  pm.expect(body.meta).to.be.an('object');",
+              "  pm.expect(body.meta.page).to.eql(1);",
+              "  pm.expect(body.meta.limit).to.eql(10);",
+              "  pm.expect(body.meta.total).to.be.a('number');",
+              "  pm.expect(body.meta.totalPages).to.be.a('number');",
+              "});",
+              "pm.test('no expone _id ni __v', () => {",
+              "  if (body.data.length > 0) {",
+              "    pm.expect(body.data[0]._id).to.be.undefined;",
+              "    pm.expect(body.data[0].__v).to.be.undefined;",
+              "    pm.expect(body.data[0].id).to.be.a('string');",
+              "  }",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/tasks"
+      }
+    },
+    {
+      "name": "05. Paginación - Página 1 con limit 2",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const body = pm.response.json();",
+              "pm.test('La página es válida', () => {",
+              "  pm.response.to.have.status(200);",
+              "  pm.expect(body.data).to.be.an('array');",
+              "  pm.expect(body.data.length).to.be.at.most(2);",
+              "  pm.expect(body.meta.page).to.eql(1);",
+              "  pm.expect(body.meta.limit).to.eql(2);",
+              "  pm.expect(body.meta.hasPreviousPage).to.be.false;",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{baseUrl}}/api/tasks?page=1&limit=2",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "tasks"],
+          "query": [
+            { "key": "page", "value": "1" },
+            { "key": "limit", "value": "2" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "06. Paginación - Página 2 con limit 2",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const body = pm.response.json();",
+              "pm.test('Segunda página válida', () => {",
+              "  pm.response.to.have.status(200);",
+              "  pm.expect(body.data).to.be.an('array');",
+              "  pm.expect(body.data.length).to.be.at.most(2);",
+              "  pm.expect(body.meta.page).to.eql(2);",
+              "  pm.expect(body.meta.limit).to.eql(2);",
+              "  pm.expect(body.meta.hasPreviousPage).to.be.true;",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{baseUrl}}/api/tasks?page=2&limit=2",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "tasks"],
+          "query": [
+            { "key": "page", "value": "2" },
+            { "key": "limit", "value": "2" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "07. Filtro por status completed",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const body = pm.response.json();",
+              "pm.test('responde 200', () => pm.response.to.have.status(200));",
+              "pm.test('todas las tareas tienen status completed', () => {",
+              "  pm.expect(body.data.every(t => t.status === 'completed')).to.be.true;",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{baseUrl}}/api/tasks?status=completed",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "tasks"],
+          "query": [
+            { "key": "status", "value": "completed" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "08. Filtro por status pending",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const body = pm.response.json();",
+              "pm.test('responde 200', () => pm.response.to.have.status(200));",
+              "pm.test('todas las tareas tienen status pending', () => {",
+              "  pm.expect(body.data.every(t => t.status === 'pending')).to.be.true;",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{baseUrl}}/api/tasks?status=pending",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "tasks"],
+          "query": [
+            { "key": "status", "value": "pending" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "09. Búsqueda por texto en título",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const body = pm.response.json();",
+              "pm.test('responde 200', () => pm.response.to.have.status(200));",
+              "pm.test('los títulos devueltos contienen el texto buscado', () => {",
+              "  pm.expect(body.data.every(t => /express/i.test(t.title))).to.be.true;",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{baseUrl}}/api/tasks?search=express",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "tasks"],
+          "query": [
+            { "key": "search", "value": "express" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "10. Búsqueda con metacaracteres regex escapados",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('responde 200 tratando .* como literal', () => pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{baseUrl}}/api/tasks?search=.*",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "tasks"],
+          "query": [
+            { "key": "search", "value": ".*" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "11. Ordenamiento por title asc",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const body = pm.response.json();",
+              "pm.test('responde 200', () => pm.response.to.have.status(200));",
+              "pm.test('lista ordenada alfabéticamente', () => {",
+              "  const titles = body.data.map(t => t.title);",
+              "  const sorted = [...titles].sort((a, b) => a.localeCompare(b));",
+              "  pm.expect(titles).to.eql(sorted);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{baseUrl}}/api/tasks?sortBy=title&order=asc",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "tasks"],
+          "query": [
+            { "key": "sortBy", "value": "title" },
+            { "key": "order", "value": "asc" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "12. Ordenamiento por title desc",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const body = pm.response.json();",
+              "pm.test('responde 200', () => pm.response.to.have.status(200));",
+              "pm.test('lista en orden descendente', () => {",
+              "  const titles = body.data.map(t => t.title);",
+              "  const sortedDesc = [...titles].sort((a, b) => b.localeCompare(a));",
+              "  pm.expect(titles).to.eql(sortedDesc);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{baseUrl}}/api/tasks?sortBy=title&order=desc",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "tasks"],
+          "query": [
+            { "key": "sortBy", "value": "title" },
+            { "key": "order", "value": "desc" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "13. Parámetros combinados (filtro + búsqueda + paginación + orden)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const body = pm.response.json();",
+              "pm.test('responde 200', () => pm.response.to.have.status(200));",
+              "pm.test('cumple contrato de datos y metadatos', () => {",
+              "  pm.expect(body.data).to.be.an('array');",
+              "  pm.expect(body.data.length).to.be.at.most(2);",
+              "  pm.expect(body.meta.page).to.eql(1);",
+              "  pm.expect(body.meta.limit).to.eql(2);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{baseUrl}}/api/tasks?status=pending&search=express&page=1&limit=2&sortBy=title&order=asc",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "tasks"],
+          "query": [
+            { "key": "status", "value": "pending" },
+            { "key": "search", "value": "express" },
+            { "key": "page", "value": "1" },
+            { "key": "limit", "value": "2" },
+            { "key": "sortBy", "value": "title" },
+            { "key": "order", "value": "asc" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "14. Desafío - Filtrar por rango de fechas createdAt",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const body = pm.response.json();",
+              "pm.test('responde 200 con rango de fechas válido', () => pm.response.to.have.status(200));",
+              "pm.test('data es arreglo', () => pm.expect(body.data).to.be.an('array'));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{baseUrl}}/api/tasks?createdFrom=2026-09-01T00:00:00.000Z&createdTo=2026-12-31T23:59:59.999Z",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "tasks"],
+          "query": [
+            { "key": "createdFrom", "value": "2026-09-01T00:00:00.000Z" },
+            { "key": "createdTo", "value": "2026-12-31T23:59:59.999Z" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "15. Negativa - page=0",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const body = pm.response.json();",
+              "pm.test('La consulta fue rechazada', () => {",
+              "  pm.response.to.have.status(422);",
+              "  pm.expect(body.error.code).to.eql('QUERY_VALIDATION_ERROR');",
+              "  pm.expect(body.error.details).to.be.an('array');",
+              "  pm.expect(body.error.requestId).to.be.a('string');",
+              "});",
+              "pm.test('identifica campo page', () => {",
+              "  pm.expect(body.error.details.some(d => d.field === 'page')).to.be.true;",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{baseUrl}}/api/tasks?page=0",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "tasks"],
+          "query": [{ "key": "page", "value": "0" }]
+        }
+      }
+    },
+    {
+      "name": "16. Negativa - page no numérico",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const body = pm.response.json();",
+              "pm.test('responde 422', () => pm.response.to.have.status(422));",
+              "pm.test('code QUERY_VALIDATION_ERROR', () => pm.expect(body.error.code).to.eql('QUERY_VALIDATION_ERROR'));",
+              "pm.test('identifica campo page', () => pm.expect(body.error.details.some(d => d.field === 'page')).to.be.true);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{baseUrl}}/api/tasks?page=abc",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "tasks"],
+          "query": [{ "key": "page", "value": "abc" }]
+        }
+      }
+    },
+    {
+      "name": "17. Negativa - limit=51 superior al máximo",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const body = pm.response.json();",
+              "pm.test('responde 422', () => pm.response.to.have.status(422));",
+              "pm.test('identifica campo limit', () => pm.expect(body.error.details.some(d => d.field === 'limit')).to.be.true);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{baseUrl}}/api/tasks?limit=51",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "tasks"],
+          "query": [{ "key": "limit", "value": "51" }]
+        }
+      }
+    },
+    {
+      "name": "18. Negativa - status no permitido (archived)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const body = pm.response.json();",
+              "pm.test('responde 422', () => pm.response.to.have.status(422));",
+              "pm.test('identifica campo status', () => pm.expect(body.error.details.some(d => d.field === 'status')).to.be.true);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{baseUrl}}/api/tasks?status=archived",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "tasks"],
+          "query": [{ "key": "status", "value": "archived" }]
+        }
+      }
+    },
+    {
+      "name": "19. Negativa - search vacío",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const body = pm.response.json();",
+              "pm.test('responde 422', () => pm.response.to.have.status(422));",
+              "pm.test('identifica campo search', () => pm.expect(body.error.details.some(d => d.field === 'search')).to.be.true);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{baseUrl}}/api/tasks?search=",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "tasks"],
+          "query": [{ "key": "search", "value": "" }]
+        }
+      }
+    },
+    {
+      "name": "20. Negativa - sortBy no permitido (priority)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const body = pm.response.json();",
+              "pm.test('responde 422', () => pm.response.to.have.status(422));",
+              "pm.test('identifica campo sortBy', () => pm.expect(body.error.details.some(d => d.field === 'sortBy')).to.be.true);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{baseUrl}}/api/tasks?sortBy=priority",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "tasks"],
+          "query": [{ "key": "sortBy", "value": "priority" }]
+        }
+      }
+    },
+    {
+      "name": "21. Negativa - order no permitido (sideways)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const body = pm.response.json();",
+              "pm.test('responde 422', () => pm.response.to.have.status(422));",
+              "pm.test('identifica campo order', () => pm.expect(body.error.details.some(d => d.field === 'order')).to.be.true);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{baseUrl}}/api/tasks?order=sideways",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "tasks"],
+          "query": [{ "key": "order", "value": "sideways" }]
+        }
+      }
+    },
+    {
+      "name": "22. Negativa - parámetro desconocido (owner=ana)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const body = pm.response.json();",
+              "pm.test('responde 422', () => pm.response.to.have.status(422));",
+              "pm.test('identifica campo owner', () => pm.expect(body.error.details.some(d => d.field === 'owner')).to.be.true);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{baseUrl}}/api/tasks?owner=ana",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "tasks"],
+          "query": [{ "key": "owner", "value": "ana" }]
+        }
+      }
+    },
+    {
+      "name": "23. Desafío (Negativa) - createdFrom con fecha inválida",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const body = pm.response.json();",
+              "pm.test('responde 422', () => pm.response.to.have.status(422));",
+              "pm.test('identifica error en createdFrom', () => pm.expect(body.error.details.some(d => d.field === 'createdFrom')).to.be.true);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{baseUrl}}/api/tasks?createdFrom=fecha-invalida",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "tasks"],
+          "query": [{ "key": "createdFrom", "value": "fecha-invalida" }]
+        }
+      }
+    },
+    {
+      "name": "24. Desafío (Negativa) - createdFrom posterior a createdTo",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const body = pm.response.json();",
+              "pm.test('responde 422', () => pm.response.to.have.status(422));",
+              "pm.test('identifica rango inconsistente', () => pm.expect(body.error.details.some(d => d.field === 'createdFrom')).to.be.true);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{baseUrl}}/api/tasks?createdFrom=2026-10-31T00:00:00.000Z&createdTo=2026-09-01T00:00:00.000Z",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "tasks"],
+          "query": [
+            { "key": "createdFrom", "value": "2026-10-31T00:00:00.000Z" },
+            { "key": "createdTo", "value": "2026-09-01T00:00:00.000Z" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "25. Regresión - GET por id",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const body = pm.response.json();",
+              "pm.test('responde 200', () => pm.response.to.have.status(200));",
+              "pm.test('id coincide', () => pm.expect(body.data.id).to.eql(pm.collectionVariables.get('taskId')));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/tasks/{{taskId}}"
+      }
+    },
+    {
+      "name": "26. Regresión - PATCH actualizar title",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const body = pm.response.json();",
+              "pm.test('responde 200', () => pm.response.to.have.status(200));",
+              "pm.test('actualiza title', () => pm.expect(body.data.title).to.eql('Título actualizado en A8'));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"title\":\"Título actualizado en A8\"}"
+        },
+        "url": "{{baseUrl}}/api/tasks/{{taskId}}"
+      }
+    },
+    {
+      "name": "27. Regresión - PATCH complete",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const body = pm.response.json();",
+              "pm.test('responde 200', () => pm.response.to.have.status(200));",
+              "pm.test('status completed', () => pm.expect(body.data.status).to.eql('completed'));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "PATCH",
+        "url": "{{baseUrl}}/api/tasks/{{taskId}}/complete"
+      }
+    },
+    {
+      "name": "28. Regresión - DELETE por id",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('responde 204 sin contenido', () => pm.response.to.have.status(204));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "DELETE",
+        "url": "{{baseUrl}}/api/tasks/{{taskId}}"
+      }
+    },
+    {
+      "name": "29. Regresión - GET por id eliminado responde 404",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const body = pm.response.json();",
+              "pm.test('responde 404', () => pm.response.to.have.status(404));",
+              "pm.test('code TASK_NOT_FOUND', () => pm.expect(body.error.code).to.eql('TASK_NOT_FOUND'));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/tasks/{{taskId}}"
+      }
+    }
+  ]
+}
