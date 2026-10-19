@@ -13,7 +13,7 @@ export const getTasks = async (
   _req: Request,
   res: Response,
 ): Promise<void> => {
-  res.status(200).json({ data: await listTasks() });
+  res.status(200).json(await listTasks(res.locals.taskQuery));
 };
 
 export const getTask = async (
