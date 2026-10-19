@@ -23,6 +23,8 @@ const ALLOWED_QUERY_FIELDS = new Set([
   "search",
   "sortBy",
   "order",
+  "createdFrom",
+  "createdTo",
 ]);
 
 const readString = (
@@ -76,6 +78,13 @@ const isTaskSortOrder = (value: string): value is TaskSortOrder => {
   return TASK_SORT_ORDERS.some((order) => order === value);
 };
 
+const isValidIsoDate = (value: string): boolean => {
+  if (!/^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}:\d{2}(\.\d{3})?Z?)?$/.test(value)) {
+    return false;
+  }
+  return !Number.isNaN(Date.parse(value));
+};
+
 export const validateTaskQuery = (
   req: Request,
   res: Response,
@@ -96,6 +105,8 @@ export const validateTaskQuery = (
   const rawSearch = readString(query, "search", issues);
   const rawSortBy = readString(query, "sortBy", issues);
   const rawOrder = readString(query, "order", issues);
+  const rawCreatedFrom = readString(query, "createdFrom", issues);
+  const rawCreatedTo = readString(query, "createdTo", issues);
 
   const page = parsePositiveInteger(
     rawPage,
@@ -157,6 +168,41 @@ export const validateTaskQuery = (
     }
   }
 
+  let createdFrom: string | undefined;
+  if (rawCreatedFrom !== undefined) {
+    if (isValidIsoDate(rawCreatedFrom)) {
+      createdFrom = rawCreatedFrom;
+    } else {
+      issues.push({
+        field: "createdFrom",
+        message: "Debe ser una fecha ISO 8601 válida.",
+      });
+    }
+  }
+
+  let createdTo: string | undefined;
+  if (rawCreatedTo !== undefined) {
+    if (isValidIsoDate(rawCreatedTo)) {
+      createdTo = rawCreatedTo;
+    } else {
+      issues.push({
+        field: "createdTo",
+        message: "Debe ser una fecha ISO 8601 válida.",
+      });
+    }
+  }
+
+  if (
+    createdFrom !== undefined &&
+    createdTo !== undefined &&
+    Date.parse(createdFrom) > Date.parse(createdTo)
+  ) {
+    issues.push({
+      field: "createdFrom",
+      message: "createdFrom no puede ser posterior a createdTo.",
+    });
+  }
+
   if (issues.length > 0) {
     next(
       new AppError(
@@ -176,6 +222,8 @@ export const validateTaskQuery = (
     order,
     ...(status === undefined ? {} : { status }),
     ...(search === undefined ? {} : { search }),
+    ...(createdFrom === undefined ? {} : { createdFrom }),
+    ...(createdTo === undefined ? {} : { createdTo }),
   };
 
   res.locals.taskQuery = taskQuery;

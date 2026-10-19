@@ -24,6 +24,8 @@ export interface TaskListQuery {
   search?: string;
   sortBy: TaskSortField;
   order: TaskSortOrder;
+  createdFrom?: string;
+  createdTo?: string;
 }
 
 export interface TaskPaginationMeta {

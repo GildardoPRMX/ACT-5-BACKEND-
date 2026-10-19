@@ -39,6 +39,10 @@
 | Negativa | `GET /api/tasks?order=sideways` | 422 QUERY_VALIDATION_ERROR | 422 con detalle en `order` | [UUID] | Aprobada |
 | Negativa | `GET /api/tasks?owner=ana` | 422 QUERY_VALIDATION_ERROR | 422 parámetro no permitido | [UUID] | Aprobada |
 | Negativa | `GET /api/tasks` (Atlas no disponible) | 503 DATABASE_UNAVAILABLE | 503 error seguro sin exponer URI | [UUID] | Aprobada |
+| Desafío (Positiva) | `GET /api/tasks?createdFrom=2026-09-01T00:00:00.000Z&createdTo=2026-10-31T23:59:59.999Z` | 200 rango de fechas válido | 200 tareas filtradas por fecha | [UUID] | Aprobada |
+| Desafío (Negativa) | `GET /api/tasks?createdFrom=fecha-invalida` | 422 QUERY_VALIDATION_ERROR | 422 fecha ISO 8601 inválida | [UUID] | Aprobada |
+| Desafío (Negativa) | `GET /api/tasks?createdFrom=2026-10-31T00:00:00.000Z&createdTo=2026-09-01T00:00:00.000Z` | 422 QUERY_VALIDATION_ERROR | 422 createdFrom posterior a createdTo | [UUID] | Aprobada |
+| Desafío (Regresión) | `GET /api/tasks?createdFrom=2026-09-01T00:00:00.000Z&status=pending&search=api&limit=2` | 200 combinación completa | 200 datos y meta coherentes | [UUID] | Aprobada |
 | Regresión | `POST /api/tasks` | 201 tarea creada | 201 con `data` creada | [UUID] | Aprobada |
 | Regresión | `GET /api/tasks/:id` | 200 tarea por id | 200 con `data` encontrada | [UUID] | Aprobada |
 | Regresión | `PATCH /api/tasks/:id` | 200 tarea actualizada | 200 con `data` modificada | [UUID] | Aprobada |
