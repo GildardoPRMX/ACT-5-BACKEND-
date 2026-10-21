@@ -1,0 +1,129 @@
+{
+  "info": {
+    "_postman_id": "c21b1d24-a9d0-4a9c-9a28-ec3f1a090001",
+    "name": "Task API EC3 F1 A9 - Autenticación y regresión",
+    "description": "Casos guiados para registro, login, validación y regresión del CRUD. Los datos de usuario son de práctica; no agregues contraseñas reales ni compartas tokens.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3000", "type": "string" },
+    { "key": "testEmail", "value": "", "type": "string" },
+    { "key": "password", "value": "Frase segura para clase 2026", "type": "string" },
+    { "key": "taskId", "value": "", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "Salud",
+      "item": [
+        {
+          "name": "GET /health",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('responde 200', () => pm.response.to.have.status(200));"] } }],
+          "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/health" }
+        },
+        {
+          "name": "GET /health/database",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('responde 200', () => pm.response.to.have.status(200));", "pm.test('la base reporta estado conectado', () => pm.expect(pm.response.json().data.database.status).to.eql('connected'));" ] } }],
+          "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/health/database" }
+        }
+      ]
+    },
+    {
+      "name": "Autenticación",
+      "item": [
+        {
+          "name": "P1 - Registro válido y correo normalizado",
+          "event": [
+            { "listen": "prerequest", "script": { "type": "text/javascript", "exec": ["const id = pm.variables.replaceIn('{{$guid}}');", "pm.collectionVariables.set('testEmail', `A9-${id}@Example.com`);"] } },
+            { "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('responde 201', () => pm.response.to.have.status(201));", "const user = pm.response.json().data.user;", "pm.test('devuelve usuario público con correo normalizado y rol user', () => { pm.expect(user.email).to.eql(pm.collectionVariables.get('testEmail').toLowerCase()); pm.expect(user.role).to.eql('user'); });", "pm.test('no expone contraseña ni hash', () => { pm.expect(user).not.to.have.property('password'); pm.expect(user).not.to.have.property('passwordHash'); });"] } }
+          ],
+          "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"name\": \"Usuario de práctica\",\n  \"email\": \"{{testEmail}}\",\n  \"password\": \"{{password}}\",\n  \"confirmPassword\": \"{{password}}\"\n}", "options": { "raw": { "language": "json" } } }, "url": "{{baseUrl}}/api/auth/register" }
+        },
+        {
+          "name": "P2 - Login válido",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('responde 200', () => pm.response.to.have.status(200));", "const data = pm.response.json().data;", "pm.test('incluye usuario público y token Bearer', () => { pm.expect(data.user.email).to.eql(pm.collectionVariables.get('testEmail').toLowerCase()); pm.expect(data.user).not.to.have.property('passwordHash'); pm.expect(data.accessToken).to.be.a('string').and.not.empty; pm.expect(data.tokenType).to.eql('Bearer'); pm.expect(data.expiresIn).to.be.a('string').and.not.empty; });"] } }],
+          "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{testEmail}}\",\n  \"password\": \"{{password}}\"\n}", "options": { "raw": { "language": "json" } } }, "url": "{{baseUrl}}/api/auth/login" }
+        },
+        {
+          "name": "N1 - Correo repetido",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('responde 409 USER_EMAIL_EXISTS', () => { pm.response.to.have.status(409); pm.expect(pm.response.json().error.code).to.eql('USER_EMAIL_EXISTS'); });"] } }],
+          "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"name\": \"Usuario de práctica\",\n  \"email\": \"{{testEmail}}\",\n  \"password\": \"{{password}}\",\n  \"confirmPassword\": \"{{password}}\"\n}", "options": { "raw": { "language": "json" } } }, "url": "{{baseUrl}}/api/auth/register" }
+        },
+        {
+          "name": "N2 - Contraseña corta",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('responde 422 AUTH_VALIDATION_ERROR', () => { pm.response.to.have.status(422); pm.expect(pm.response.json().error.code).to.eql('AUTH_VALIDATION_ERROR'); });"] } }],
+          "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"name\": \"Usuario de práctica\",\n  \"email\": \"corto@example.com\",\n  \"password\": \"corta\",\n  \"confirmPassword\": \"corta\"\n}", "options": { "raw": { "language": "json" } } }, "url": "{{baseUrl}}/api/auth/register" }
+        },
+        {
+          "name": "N3 - Contraseña mayor de 72 bytes UTF-8",
+          "event": [{ "listen": "prerequest", "script": { "type": "text/javascript", "exec": ["pm.collectionVariables.set('longPassword', 'é'.repeat(37));"] } }, { "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('responde 422 AUTH_VALIDATION_ERROR', () => { pm.response.to.have.status(422); pm.expect(pm.response.json().error.code).to.eql('AUTH_VALIDATION_ERROR'); });"] } }],
+          "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"name\": \"Usuario de práctica\",\n  \"email\": \"larga@example.com\",\n  \"password\": \"{{longPassword}}\",\n  \"confirmPassword\": \"{{longPassword}}\"\n}", "options": { "raw": { "language": "json" } } }, "url": "{{baseUrl}}/api/auth/register" }
+        },
+        {
+          "name": "N4 - El cliente no puede asignar role admin",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('responde 422 AUTH_VALIDATION_ERROR', () => { pm.response.to.have.status(422); pm.expect(pm.response.json().error.code).to.eql('AUTH_VALIDATION_ERROR'); });", "pm.test('role aparece como campo no permitido', () => pm.expect(pm.response.json().error.details.some((item) => item.field === 'role')).to.eql(true));"] } }],
+          "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"name\": \"Usuario de práctica\",\n  \"email\": \"rol@example.com\",\n  \"password\": \"{{password}}\",\n  \"confirmPassword\": \"{{password}}\",\n  \"role\": \"admin\"\n}", "options": { "raw": { "language": "json" } } }, "url": "{{baseUrl}}/api/auth/register" }
+        },
+        {
+          "name": "N5 - Confirmación distinta",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('responde 422 por confirmPassword', () => { pm.response.to.have.status(422); const error = pm.response.json().error; pm.expect(error.code).to.eql('AUTH_VALIDATION_ERROR'); pm.expect(error.details.some((item) => item.field === 'confirmPassword')).to.eql(true); });"] } }],
+          "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"name\": \"Usuario de práctica\",\n  \"email\": \"confirmacion@example.com\",\n  \"password\": \"{{password}}\",\n  \"confirmPassword\": \"Una contraseña diferente\"\n}", "options": { "raw": { "language": "json" } } }, "url": "{{baseUrl}}/api/auth/register" }
+        },
+        {
+          "name": "N6 - Contraseña incorrecta",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('responde 401 INVALID_CREDENTIALS', () => { pm.response.to.have.status(401); const error = pm.response.json().error; pm.expect(error.code).to.eql('INVALID_CREDENTIALS'); pm.collectionVariables.set('invalidCredentialsMessage', error.message); });"] } }],
+          "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{testEmail}}\",\n  \"password\": \"contraseña incorrecta\"\n}", "options": { "raw": { "language": "json" } } }, "url": "{{baseUrl}}/api/auth/login" }
+        },
+        {
+          "name": "N7 - Correo inexistente usa el mismo error",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('responde el mismo 401 y mensaje', () => { pm.response.to.have.status(401); const error = pm.response.json().error; pm.expect(error.code).to.eql('INVALID_CREDENTIALS'); pm.expect(error.message).to.eql(pm.collectionVariables.get('invalidCredentialsMessage')); });"] } }],
+          "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"email\": \"no-existe@example.invalid\",\n  \"password\": \"{{password}}\"\n}", "options": { "raw": { "language": "json" } } }, "url": "{{baseUrl}}/api/auth/login" }
+        },
+        {
+          "name": "N8 - Content-Type incorrecto",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('responde 415 UNSUPPORTED_MEDIA_TYPE', () => { pm.response.to.have.status(415); pm.expect(pm.response.json().error.code).to.eql('UNSUPPORTED_MEDIA_TYPE'); });"] } }],
+          "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "text/plain" }], "body": { "mode": "raw", "raw": "{\"email\":\"{{testEmail}}\",\"password\":\"{{password}}\"}", "options": { "raw": { "language": "text" } } }, "url": "{{baseUrl}}/api/auth/login" }
+        },
+        {
+          "name": "N9 - JSON inválido",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('responde 400 INVALID_JSON', () => { pm.response.to.have.status(400); pm.expect(pm.response.json().error.code).to.eql('INVALID_JSON'); });"] } }],
+          "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{", "options": { "raw": { "language": "json" } } }, "url": "{{baseUrl}}/api/auth/login" }
+        }
+      ]
+    },
+    {
+      "name": "Regresión de tareas (sin Authorization)",
+      "item": [
+        {
+          "name": "R1 - Listar con paginación",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('las tareas siguen públicas y responden 200', () => pm.response.to.have.status(200));", "pm.test('incluye datos y metadatos de paginación', () => { const body = pm.response.json(); pm.expect(body.data).to.be.an('array'); pm.expect(body.meta).to.have.property('page'); });"] } }],
+          "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/api/tasks?page=1&limit=5" }
+        },
+        {
+          "name": "R2 - Crear tarea de práctica",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('crea la tarea con 201', () => { pm.response.to.have.status(201); const task = pm.response.json().data; pm.expect(task.id).to.be.a('string'); pm.collectionVariables.set('taskId', task.id); });"] } }],
+          "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"title\": \"Probar A9 regresion\"\n}", "options": { "raw": { "language": "json" } } }, "url": "{{baseUrl}}/api/tasks" }
+        },
+        {
+          "name": "R3 - Actualizar tarea",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('actualiza la tarea con 200', () => { pm.response.to.have.status(200); pm.expect(pm.response.json().data.title).to.eql('Probar A9 regresion actualizada'); });"] } }],
+          "request": { "method": "PATCH", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"title\": \"Probar A9 regresion actualizada\"\n}", "options": { "raw": { "language": "json" } } }, "url": "{{baseUrl}}/api/tasks/{{taskId}}" }
+        },
+        {
+          "name": "R4 - Completar tarea",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('marca la tarea completed con 200', () => { pm.response.to.have.status(200); pm.expect(pm.response.json().data.status).to.eql('completed'); });"] } }],
+          "request": { "method": "PATCH", "header": [], "url": "{{baseUrl}}/api/tasks/{{taskId}}/complete" }
+        },
+        {
+          "name": "R5 - Filtrar, buscar y ordenar",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('la consulta combinada responde 200', () => pm.response.to.have.status(200));", "pm.test('encuentra la tarea de regresión', () => pm.expect(pm.response.json().data.some((task) => task.id === pm.collectionVariables.get('taskId'))).to.eql(true));"] } }],
+          "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/api/tasks?status=completed&search=A9&sortBy=title&order=asc" }
+        },
+        {
+          "name": "R6 - Eliminar tarea de práctica",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('elimina la tarea con 204 sin cuerpo', () => { pm.response.to.have.status(204); pm.expect(pm.response.text()).to.eql(''); });"] } }],
+          "request": { "method": "DELETE", "header": [], "url": "{{baseUrl}}/api/tasks/{{taskId}}" }
+        }
+      ]
+    }
+  ]
+}

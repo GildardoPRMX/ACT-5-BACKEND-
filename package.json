@@ -23,8 +23,10 @@
   "type": "module",
   "packageManager": "pnpm@11.25.0",
   "dependencies": {
+    "bcryptjs": "3.0.3",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
+    "jose": "6.2.12",
     "mongoose": "^8.24.4"
   },
   "devDependencies": {

@@ -1,9 +1,8 @@
-import "dotenv/config";
 import type { Server } from "node:http";
 
 import { app } from "./app.js";
 import { connectDatabase, disconnectDatabase } from "./config/database.js";
-import { loadEnvironment } from "./config/env.js";
+import { env } from "./config/env.js";
 
 let server: Server | null = null;
 let isShuttingDown = false;
@@ -36,13 +35,12 @@ process.on("SIGTERM", () => void gracefulShutdown("SIGTERM"));
 
 const startServer = async (): Promise<void> => {
   try {
-    const env = loadEnvironment();
     await connectDatabase({
-      uri: env.mongodbUri,
-      dbName: env.mongodbDbName,
+      uri: env.MONGODB_URI,
+      dbName: env.MONGODB_DB_NAME,
     });
-    server = app.listen(env.port, () => {
-      console.log(`API disponible en http://localhost:${env.port}`);
+    server = app.listen(env.PORT, () => {
+      console.log(`API disponible en http://localhost:${env.PORT}`);
     });
   } catch {
     console.error(
